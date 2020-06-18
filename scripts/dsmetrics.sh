@@ -48,6 +48,12 @@ function usage () {
     echo "Usage: dsmetrics.sh propertiesfile"
 }
 
+function log () {
+    logfile=$LOG_FILE_BASE.`date -u +%Y-%m-%d`
+    timestamp=$( date -u +%Y-%m-%dT%H:%M:%SZ )
+    echo "{ \"timestamp\" : \"$timestamp\", \"metrics\" : $1 }" >> $logfile
+}
+
 # Go
 
 if [ $# != 1 ]
@@ -67,4 +73,5 @@ else
     metrics=$( getMetrics "$DS_BASE_URL" "$MONITOR_USERNAME" "$MONITOR_PASSWORD" "$API_METRICS" ) 
 fi
 
-echo $metrics
+
+log "$metrics"
