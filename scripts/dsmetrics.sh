@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash 
 
 # getMetrics dsurl userid password [fields]
 # 
@@ -24,11 +24,11 @@ function getMetrics() {
 
     json=$(curl -k -s --user "$userid:$password"  "${dsurl}/metrics/api?_queryFilter=$filter")
 
-    echo $json
+    echo $json | jq -c .result
 }
 
 
-# getPrometheusMetrics dsurl userid password [fields]
+# getPrometheusMetrics dsurl userid password fields
 # 
 # Get DS metrics via Prometheus endpoint
 #
@@ -43,15 +43,48 @@ function getPrometheusMetrics() {
     curl -k -s --user "$userid:$password"  "${dsurl}/metrics/prometheus" | grep -v "^#" | grep $filter
 }
 
+# getLdapMetrics dshost dsport binddn password fields
+# 
+# Get DS metrics via LDAP
+#
+
+function getLdapMetrics() {
+    dshost=$1
+    dsport=$2
+    binddn=$3
+    password=$4
+    metrics=$5
+
+    start=true
+
+    filter=$( echo $metrics | sed "s/\ /\\\|/g" )
+    $LDAPSEARCH -D "$binddn" -w "$password" -h $dshost -p $dsport --baseDN "cn=monitor"  -Z  --trustAll  "(&)" | grep $filter | while read metric
+    do
+            if [ $start == "true" ]
+            then
+                echo "{"
+                start=false
+            else
+                echo ","
+            fi
+            echo $metric | sed -E "s/(.*):(.*)/\"\1\" : \2/"
+    done 
+    echo "}"
+}
 
 function usage () {
     echo "Usage: dsmetrics.sh propertiesfile"
 }
 
 function log () {
-    logfile=$LOG_FILE_BASE.`date -u +%Y-%m-%d`
-    timestamp=$( date -u +%Y-%m-%dT%H:%M:%SZ )
-    echo "{ \"timestamp\" : \"$timestamp\", \"metrics\" : $1 }" >> $logfile
+    if [ -z "$LOG_FILE_BASE" ]
+    then
+        echo "$1"
+    else
+        logfile=$LOG_FILE_BASE.`date -u +%Y-%m-%d`
+        timestamp=$( date -u +%Y-%m-%dT%H:%M:%SZ )
+        echo "{ \"timestamp\" : \"$timestamp\", \"metrics\" : $1 }" >> $logfile
+    fi
 }
 
 # Go
@@ -69,6 +102,9 @@ propertiesfile=$1
 if [ "$METHOD" == "prometheus" ]
 then
     metrics=$( getPrometheusMetrics "$DS_BASE_URL" "$MONITOR_USERNAME" "$MONITOR_PASSWORD" "$PROM_METRICS" )
+elif [ "$METHOD" == "ldaps" ]
+then
+    metrics=$( getLdapMetrics "$DS_LDAP_HOST" "$DS_LDAP_PORT" "$MONITOR_BINDDN" "$MONITOR_PASSWORD" "$LDAP_METRICS" ) 
 else
     metrics=$( getMetrics "$DS_BASE_URL" "$MONITOR_USERNAME" "$MONITOR_PASSWORD" "$API_METRICS" ) 
 fi
