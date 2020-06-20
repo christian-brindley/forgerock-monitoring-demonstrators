@@ -31,11 +31,10 @@ function getMetrics() {
 # getPrometheusMetrics dsurl userid password fields
 # 
 # Get DS metrics via Prometheus endpoint
-#
-
-function getPrometheusMetrics() {
-    dsurl=$1
-    userid=$2
+# 
+function getPrometheusMetrics() { 
+    dsurl=$1 
+    userid=$2 
     password=$3
     metrics=$4
 
@@ -67,8 +66,8 @@ function getLdapMetrics() {
             else
                 echo ","
             fi
-            echo $metric | sed -E "s/(.*):(.*)/\"\1\" : \2/"
-    done 
+            echo "\"$(echo $metric | cut -d":" -f1)\" : $(echo $metric | cut -d":" -f2-)"
+    done
     echo "}"
 }
 
@@ -109,5 +108,5 @@ else
     metrics=$( getMetrics "$DS_BASE_URL" "$MONITOR_USERNAME" "$MONITOR_PASSWORD" "$API_METRICS" ) 
 fi
 
-
+metrics=$( echo "$metrics" | sed ':a;N;$!ba;s/\n/ /g' )
 log "$metrics"
