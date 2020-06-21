@@ -71,19 +71,72 @@ function getLdapMetrics() {
     echo "}"
 }
 
+# usage
+# 
+# display usage information
+#
+ 
 function usage () {
     echo "Usage: dsmetrics.sh propertiesfile"
 }
 
+# cleanlogs days
+# 
+# clean up log from x days ago
+#
+
+function cleanlogs () {
+    days=$1
+
+    oldlog=$LOG_FILE_BASE.`date -u --date "-${days} days" +%Y-%m-%d`
+    if [ -f "$oldlog" ]
+    then
+        rm -f "$oldlog"
+    fi
+}
+
+# log metrics
+# 
+# write message to log with timestamp and success indicator
+#
+
 function log () {
+    metrics=$1
+
     if [ -z "$LOG_FILE_BASE" ]
     then
-        echo "$1"
+        echo "$metrics"
     else
-        logfile=$LOG_FILE_BASE.`date -u +%Y-%m-%d`
+        if [[ -n "$LOG_ROTATE" && "$LOG_ROTATE" != 0 ]]
+        then
+            cleanlogs $LOG_ROTATE
+            logfile=$LOG_FILE_BASE.`date -u +%Y-%m-%d`
+        else
+            logfile=$LOG_FILE_BASE
+        fi
+     
         timestamp=$( date -u +%Y-%m-%dT%H:%M:%SZ )
-        echo "{ \"timestamp\" : \"$timestamp\", \"metrics\" : $1 }" >> $logfile
+        if [ -n "$metrics" ]
+        then
+            response=true
+        else
+            response=false
+        fi
+        echo "{ \"timestamp\" : \"$timestamp\", \"response\" : $response, \"metrics\" : $metrics }" >> $logfile
     fi
+}
+
+# checkconfig propertiesfile
+#
+# Check configuration
+#
+
+function checkconfig () {
+    error=0
+
+    [ -z "$MONITOR_PASSWORD" ] && echo "No value specified for MONITOR_PASSWORD" && error=1
+
+    [ $error == 0 ]
 }
 
 # Go
@@ -96,7 +149,20 @@ fi
 
 propertiesfile=$1
 
+if [ ! -f $propertiesfile ]
+then
+    echo "Properties file $propertiesfile does not exist"
+    exit 1
+fi
+
 . $propertiesfile
+
+if ! checkconfig
+then
+    echo Error in config
+    exit 1
+fi
+
 
 if [ "$METHOD" == "prometheus" ]
 then
