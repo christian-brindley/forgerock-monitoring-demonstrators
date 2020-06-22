@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 
 ##############################################################################
 # DISCLAIMER                                                                 #
@@ -20,6 +20,14 @@
 # others related to the sample code.                                         #
 ##############################################################################
 
+#
+# dsmetrics.sh
+# v1.beta - experimental
+#
+# Get metrics from ForgeRock DS 
+# 
+# Usage: dsmetrics.sh propertiesfile
+#
 
 
 # getMetrics dsurl userid password [fields]
@@ -45,9 +53,9 @@ function getMetrics() {
         filter="${filter}_id%20eq%20%22${metric}%22"
     done
 
-    json=$(curl -k -s --user "$userid:$password"  "${dsurl}/metrics/api?_queryFilter=$filter")
+    json=$(curl -k -s --user "$userid:$password"  "${dsurl}/metrics/api?_queryFilter=$filter"  2>>${LOG_FILE_BASE}.error)
 
-    echo $json | jq -c .result
+    echo $json # | jq -c .result
 }
 
 
@@ -61,8 +69,22 @@ function getPrometheusMetrics() {
     password=$3
     metrics=$4
 
+    start=true
+
     filter=$( echo $metrics | sed "s/\ /\\\|/g" )
-    curl -k -s --user "$userid:$password"  "${dsurl}/metrics/prometheus" | grep -v "^#" | grep $filter
+    echo -n "{"
+    curl -k -s --user "$userid:$password"  "${dsurl}/metrics/prometheus"  2>>${LOG_FILE_BASE}.error | grep -v "^#" | grep $filter  | while read metric
+    do
+            if [ $start == "true" ]
+            then
+                start=false
+            else
+                echo ","
+            fi
+            echo "\"$(echo $metric | cut -d" " -f1)\" : $(echo $metric | cut -d" " -f2-)"
+    done
+    echo -n "}"
+
 }
 
 # getLdapMetrics dshost dsport binddn password fields
@@ -79,19 +101,19 @@ function getLdapMetrics() {
 
     start=true
 
+    echo -n "{"
     filter=$( echo $metrics | sed "s/\ /\\\|/g" )
-    $LDAPSEARCH -D "$binddn" -w "$password" -h $dshost -p $dsport --baseDN "cn=monitor"  -Z  --trustAll  "(&)" | grep $filter | while read metric
+    $LDAPSEARCH -D "$binddn" -w "$password" -h $dshost -p $dsport --baseDN "cn=monitor"  -Z  --trustAll  "(&)" 2>>${LOG_FILE_BASE}.error| grep $filter | while read metric
     do
             if [ $start == "true" ]
             then
-                echo "{"
                 start=false
             else
                 echo ","
             fi
             echo "\"$(echo $metric | cut -d":" -f1)\" : $(echo $metric | cut -d":" -f2-)"
     done
-    echo "}"
+    echo -n "}"
 }
 
 # usage
