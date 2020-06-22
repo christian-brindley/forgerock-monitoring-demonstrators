@@ -24,7 +24,7 @@
 # dsmetrics.sh
 # v1.beta - experimental
 #
-# Get metrics from ForgeRock DS 
+# Get metrics from ForgeRock Directory Services 
 # 
 # Usage: dsmetrics.sh propertiesfile
 #
