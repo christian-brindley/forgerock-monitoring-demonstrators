@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash 
 
 ##############################################################################
 # DISCLAIMER                                                                 #
@@ -21,12 +21,15 @@
 ##############################################################################
 
 #
-# Config
+# amrecord.sh
+# v1.beta - experimental
+#
+# Manage AM recordings for debugging
+#
+# Usage: amrecord.sh propertiesfile { start | stop | status }
 #
 
-AM_ADMIN_USERNAME="amadmin"
-AM_ADMIN_PASSWORD="Passw0rd"
-AM_URL="https://am.authdemo.org"
+
 
 # getAmSession amurl userid password
 # 
@@ -66,23 +69,27 @@ function getJsonValue() {
     echo $value
 }
 
-# recordCtl amUrl userid password { start [options] | stop | status }
+# recordCtl amUrl userid password { start | stop | status } options
 #
 # Start, stop or check recording
 #
 
 function recordCtl() {
-    amUrl=$1
-    userid=$2
-    password=$3
-    action=$4
-
+    action=$1
+    amUrl=$2
+    userid=$3
+    password=$4
+    id=$5
+    desc=$6
+    duration=$7
+    zippass=$8
+    
     tokenheader=$(getSsoTokenHeader $amUrl)
     ssotoken=$(getAmSession $amUrl $userid $password)
 
     if [ $action == "start" ]
     then
-        payload="$(getRecordPayload 111111 "problem" Passw0rd 60)"
+        payload=$(getRecordPayload "$id" "$desc" "$zippass" "$duration")
     else
         payload=""
     fi
@@ -91,25 +98,25 @@ function recordCtl() {
 }
 
 
-# getRecordPayload idnum idref 
+# getRecordPayload id description zippass duration
 # 
 # Build JSON payload for records endpoint
 
 function getRecordPayload () {
 
     id=$1
-    ref=$2
-    pass=$3
+    desc=$2
+    zippass=$3
     time=$4
 
     payload="{ \
       \"issueID\": $id, \
-      \"referenceID\": \"$ref\",  \
-      \"description\": \"Troubleshooting artifacts\",  \
+      \"referenceID\": \"$id\",  \
+      \"description\": \"$desc\",  \
       \"zipEnable\": true,  \
       \"configExport\": {  \
         \"enable\": true,  \
-        \"password\": \"Passw0rd\",  \
+        \"password\": \"$zippass\",  \
         \"sharePassword\": false  \
       },  \
       \"debugLogs\": {  \
@@ -129,7 +136,7 @@ function getRecordPayload () {
       \"enable\": true,  \
       \"delay\" :  {  \
         \"timeUnit\": \"SECONDS\",  \
-        \"value\": 5  \
+        \"value\": $time  \
       }  \
     }  \
   }"
@@ -138,40 +145,48 @@ function getRecordPayload () {
 }
 
 function usage () {
-  echo Usage: amrecord.sh "{ start [options] | stop | status }"
+  echo Usage: amrecord.sh "propertiesfile { start | stop | status }"
 }
 
 # Go
 
-if [ $# -eq 0 ]
+if [[ $# != 2 ]]
 then
     usage
     exit 1
 fi
 
-action=$1
+propertiesfile=$1
+action=$2
+
+if [ ! -f $propertiesfile ]
+then
+    echo "Properties file $propertiesfile does not exist"
+    exit 1
+fi
+
+. $propertiesfile
+
 
 if [ $action == "start" ]
 then
-    response=$(recordCtl $AM_URL $AM_ADMIN_USERNAME $AM_ADMIN_PASSWORD start)
-    echo $(getJsonValue "$response" "status")
+    response=$(recordCtl start $AM_URL $AM_ADMIN_USERNAME $AM_ADMIN_PASSWORD "$RECORDING_ID" "$RECORDING_DESCRIPTION" "$RECORDING_DURATION" "$ZIP_PASSWORD" )
+    echo $response
     exit 0
 fi
 
 if [ $action == "status" ]
 then
-    response=$(recordCtl $AM_URL $AM_ADMIN_USERNAME $AM_ADMIN_PASSWORD status)
+    response=$(recordCtl status $AM_URL $AM_ADMIN_USERNAME $AM_ADMIN_PASSWORD)
     echo $response
-    echo $(getJsonValue "$response" "recording")
     exit 0
 fi
 
 if [ $action == "stop" ]
 then
-    response=$(recordCtl $AM_URL $AM_ADMIN_USERNAME $AM_ADMIN_PASSWORD stop)
-    echo $(getJsonValue "$response" "message")
+    response=$(recordCtl stop $AM_URL $AM_ADMIN_USERNAME $AM_ADMIN_PASSWORD)
+    echo $response
     exit 0
 fi
 
 usage
-
