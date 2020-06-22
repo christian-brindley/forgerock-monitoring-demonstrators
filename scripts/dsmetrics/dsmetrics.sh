@@ -53,7 +53,7 @@ function getMetrics() {
         filter="${filter}_id%20eq%20%22${metric}%22"
     done
 
-    json=$(curl -k -s --user "$userid:$password"  "${dsurl}/metrics/api?_queryFilter=$filter"  2>>${LOG_FILE_BASE}.error)
+    json=$( curl -k -s --user "$userid:$password"  "${dsurl}/metrics/api?_queryFilter=$filter" )
 
     echo $json # | jq -c .result
 }
@@ -73,7 +73,7 @@ function getPrometheusMetrics() {
 
     filter=$( echo $metrics | sed "s/\ /\\\|/g" )
     echo -n "{"
-    curl -k -s --user "$userid:$password"  "${dsurl}/metrics/prometheus"  2>>${LOG_FILE_BASE}.error | grep -v "^#" | grep $filter  | while read metric
+    curl -k -s --user "$userid:$password"  "${dsurl}/metrics/prometheus" | grep -v "^#" | grep $filter  | while read metric
     do
             if [ $start == "true" ]
             then
@@ -103,7 +103,7 @@ function getLdapMetrics() {
 
     echo -n "{"
     filter=$( echo $metrics | sed "s/\ /\\\|/g" )
-    $LDAPSEARCH -D "$binddn" -w "$password" -h $dshost -p $dsport --baseDN "cn=monitor"  -Z  --trustAll  "(&)" 2>>${LOG_FILE_BASE}.error| grep $filter | while read metric
+    $LDAPSEARCH -D "$binddn" -w "$password" -h $dshost -p $dsport --baseDN "cn=monitor"  -Z  --trustAll  "(&)" | grep $filter | while read metric
     do
             if [ $start == "true" ]
             then
