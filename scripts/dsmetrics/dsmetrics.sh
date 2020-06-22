@@ -125,52 +125,6 @@ function usage () {
     echo "Usage: dsmetrics.sh propertiesfile"
 }
 
-# cleanlogs days
-# 
-# clean up log from x days ago
-#
-
-function cleanlogs () {
-    days=$1
-
-    oldlog=$LOG_FILE_BASE.`date -u --date "-${days} days" +%Y-%m-%d`
-    if [ -f "$oldlog" ]
-    then
-        rm -f "$oldlog"
-    fi
-}
-
-# log metrics
-# 
-# write message to log with timestamp and success indicator
-#
-
-function log () {
-    metrics=$1
-
-    if [ -z "$LOG_FILE_BASE" ]
-    then
-        echo "$metrics"
-    else
-        if [[ -n "$LOG_ROTATE" && "$LOG_ROTATE" != 0 ]]
-        then
-            cleanlogs $LOG_ROTATE
-            logfile=$LOG_FILE_BASE.`date -u +%Y-%m-%d`
-        else
-            logfile=$LOG_FILE_BASE
-        fi
-     
-        timestamp=$( date -u +%Y-%m-%dT%H:%M:%SZ )
-        if [ -n "$metrics" ]
-        then
-            response=true
-        else
-            response=false
-        fi
-        echo "{ \"timestamp\" : \"$timestamp\", \"response\" : $response, \"metrics\" : $metrics }" >> $logfile
-    fi
-}
-
 # checkconfig propertiesfile
 #
 # Check configuration
@@ -219,5 +173,6 @@ else
     metrics=$( getMetrics "$DS_BASE_URL" "$MONITOR_USERNAME" "$MONITOR_PASSWORD" "$API_METRICS" ) 
 fi
 
-metrics=$( echo "$metrics" | sed ':a;N;$!ba;s/\n/ /g' )
-log "$metrics"
+timestamp=$( date -u +%Y-%m-%dT%H:%M:%SZ )
+metrics=$( echo "{ \"timestamp\" : \"$timestamp\", \"metrics\" : " `echo "$metrics" | sed ':a;N;$!ba;s/\n/ /g'` "}" )
+echo "$metrics"
