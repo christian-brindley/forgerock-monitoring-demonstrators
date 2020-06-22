@@ -30,7 +30,7 @@
 #
 
 
-# getMetrics dsurl userid password [fields]
+# getMetrics dsurl userid password
 # 
 # Get DS metrics
 #
